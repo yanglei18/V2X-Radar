@@ -136,7 +136,7 @@ V2X-Radar
 ```
 ## Changelog
 - The trainval-full dataset will released soon.
-- Jul. 28, 2025: The full [V2X-Radar-V](https://cloud.tsinghua.edu.cn/d/65686f2ee49b49129e31/) data is released.
+- Jul. 28, 2025: The full [v2x-radar-v](https://cloud.tsinghua.edu.cn/d/65686f2ee49b49129e31/) data is released.
 - Mar. 18, 2025: The [mini sample](https://drive.google.com/drive/folders/11zq-v9GBdFv_tnpKd3EkS1mbSNzZf0RT?usp=sharing) data is released.
 - Mar. 15, 2025: Tha paper and supplementary is released.
 - Mar. 14, 2025: The codebase is released.
