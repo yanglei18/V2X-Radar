@@ -10,23 +10,21 @@
 V2X-Radar
 ├── data
 │   ├── v2x-radar 
-│   │   ├── mini
-│   │   │   ├── v2x-radar-i
-│   │   │   ├── v2x-radar-v
-│   │   │   ├── v2x-radar-c  # OpenV2V Format
-│   │   │   │   ├── train
-│   │   │   │   │   ├── 2024-05-15-16-28-09
-│   │   │   │   │   │   ├── -1  # RoadSide
-│   │   │   │   │   │   │   ├── 00000.pcd - 00250.pcd # the LiDAR point clouds data from timestamp 0 to 250
-│   │   │   │   │   │   │   ├── 00000_radar.pcd - 00250_radar.pcd # the 4D Radar point clouds data transformed on the LiDAR frame from timestamp 0 to 250
-│   │   │   │   │   │   │   ├── 00000.yaml - 00250.yaml # corresponding metadata for each timestamp
-│   │   │   │   │   │   │   ├── 00000_camera0.jpg - 00250_camera0.jpg # left camera images
-│   │   │   │   │   │   │   ├── 00000_camera1.jpg - 00250_camera1.jpg # front camera images
-│   │   │   │   │   │   │   ├── 00000_camera2.jpg - 00250_camera2.jpg # right camera images
-│   │   │   │   │   │   ├── 142 # Vehicle Side
-│   │   │   │   ├── validate
-│   │   │   │   ├── test
-│   │   ├── trainval-full    # release soon
+│   │   ├── v2x-radar-i
+│   │   ├── v2x-radar-v
+│   │   ├── v2x-radar-c  # OpenV2V Format
+│   │   │   ├── train
+│   │   │   │   ├── 2024-05-15-16-28-09
+│   │   │   │   │   ├── -1  # RoadSide
+│   │   │   │   │   │   ├── 00000.pcd - 00250.pcd # the LiDAR point clouds data from timestamp 0 to 250
+│   │   │   │   │   │   ├── 00000_radar.pcd - 00250_radar.pcd # the 4D Radar point clouds data transformed on the LiDAR frame from timestamp 0 to 250
+│   │   │   │   │   │   ├── 00000.yaml - 00250.yaml # corresponding metadata for each timestamp
+│   │   │   │   │   │   ├── 00000_camera0.jpg - 00250_camera0.jpg # left camera images
+│   │   │   │   │   │   ├── 00000_camera1.jpg - 00250_camera1.jpg # front camera images
+│   │   │   │   │   │   ├── 00000_camera2.jpg - 00250_camera2.jpg # right camera images
+│   │   │   │   │   ├── 142 # Vehicle Side
+│   │   │   ├── validate
+│   │   │   ├── test
 │   ├── dair-v2x-c 
 │   ├── openv2v
 │   │   ├── additional
@@ -49,7 +47,6 @@ cd V2X-Radar/CodeBase/OpenCOOD
 pip install -r requirements.txt
 python setup.py develop
 ```
-
 
 ### 2.2. Install Spconv (1.2.1 or 2.x)
 We use spconv 1.2.1 or spconv 2.x to generate voxel features. spconv 2.x has much convenient installation.

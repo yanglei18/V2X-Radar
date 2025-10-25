@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import os
 import math
 import cv2
@@ -9,8 +11,9 @@ color_map = {"Car":(0, 255, 0), "Bus":(0, 255, 255), "Pedestrian":(255, 255, 0),
 
 def parse_option():
     parser = argparse.ArgumentParser('Visualize InfrastructureSide dataset', add_help=False)
-    parser.add_argument('--kitti_root', type=str, default='data/v2x-radar-i', help='root path to KITTI Dataset')
-    parser.add_argument('--demo_path', type=str, default='v2x-radar-demo', help='')    
+    parser.add_argument('--kitti_root', type=str, default='data/v2x-radar-i-released/V2X-Radar-I', help='root path to KITTI Dataset')
+    parser.add_argument('--pred_path', type=str, default='', help='root path to Predictions')    
+    parser.add_argument('--demo_path', type=str, default='kitt_demo_infra', help='')    
     args = parser.parse_args()
     return args
 
@@ -359,7 +362,7 @@ class PointCloudFilter(object):
         return bev_image
 
 class KITTIDataset:
-    def __init__(self, kitti_root, split="val"):
+    def __init__(self, kitti_root, pred_path, split="val"):
         super(KITTIDataset, self).__init__()
         self.kitti_root = kitti_root
         self.split = split
@@ -367,19 +370,19 @@ class KITTIDataset:
         self.image_2_dir = os.path.join(kitti_root, "training", "image_2")
         self.image_3_dir = os.path.join(kitti_root, "training", "image_3")
         
-        self.label_dir_2 = os.path.join(kitti_root, "training", "label_mono_2")
-        self.label_dir_1 = os.path.join(kitti_root, "training", "label_mono_2")
+        self.label_dir_1 = pred_path if os.path.exists(pred_path) else os.path.join(kitti_root, "training", "label_2")
+        self.label_dir_2 = os.path.join(kitti_root, "training", "label_2")
         
         self.calib_dir = os.path.join(kitti_root, "training", "calib")
         self.lidar_dir = os.path.join(kitti_root, "training", "velodyne")
         self.radar_dir = os.path.join(kitti_root, "training", "radar")
         
         image_files = [] 
-        for label_name in os.listdir(self.label_dir_2):
-            if not os.path.exists(os.path.join(self.label_dir_1, label_name)): continue
+        for label_name in os.listdir(self.label_dir_1):
+            if not os.path.exists(os.path.join(self.label_dir_2, label_name)): continue
             base_name = label_name.split('.')[0]
             image_files.append(base_name + ".jpg")
-            
+        
         self.image_files = image_files
         self.image_files = image_files
         self.lidar_files = [i.replace(".jpg", ".bin") for i in self.image_files]
@@ -391,11 +394,14 @@ class KITTIDataset:
     def __len__(self):
         return self.num_samples
     
-    def load_calib(self, idx):
+    def load_calib_kitti(self, idx):
         calib_file = os.path.join(self.calib_dir, self.label_files[idx])
         with open(calib_file, 'r') as csv_file:
             reader = csv.reader(csv_file, delimiter=' ')
-            P2, R0_rect, Tr_velo2cam = None, None, None
+            P2, R0_rect = None, None
+            Tr_velo2cam1, Tr_velo2cam2, Tr_velo2cam3 = None, None, None
+            Tr_radar_to_velo = None
+            P1, P3 = None, None
             for line, row in enumerate(reader):
                 if row[0] == 'P1:':
                     P1 = row[1:]
@@ -432,21 +438,34 @@ class KITTIDataset:
                     Tr_velo2cam3 = [float(i) for i in Tr_velo2cam3]
                     Tr_velo2cam3 = np.array(Tr_velo2cam3, dtype=np.float32).reshape(3, 4)
                     continue
+                elif row[0] == 'Tr_radar_to_velo:':
+                    Tr_radar_to_velo = row[1:]
+                    Tr_radar_to_velo = [float(i) for i in Tr_radar_to_velo]
+                    Tr_radar_to_velo = np.array(Tr_radar_to_velo, dtype=np.float32).reshape(3, 4)
+                    continue
             if R0_rect is not None:
-                Tr_velo2cam1 = np.matmul(R0_rect, Tr_velo2cam1)
-                Tr_velo2cam2 = np.matmul(R0_rect, Tr_velo2cam2)
-                Tr_velo2cam3 = np.matmul(R0_rect, Tr_velo2cam3)
-            sensor_params = {
-                "CAM_LEFT": (P1, Tr_velo2cam1[:3, :3], Tr_velo2cam1[:3, 3]),
-                "CAM_FRONT": (P2, Tr_velo2cam2[:3, :3], Tr_velo2cam2[:3, 3]), 
-                "CAM_RIGHT": (P3, Tr_velo2cam3[:3, :3], Tr_velo2cam3[:3, 3])
-            }
+                if Tr_velo2cam1 is not None:
+                    Tr_velo2cam1 = np.matmul(R0_rect, Tr_velo2cam1)
+                if Tr_velo2cam2 is not None:
+                    Tr_velo2cam2 = np.matmul(R0_rect, Tr_velo2cam2)
+                if Tr_velo2cam3 is not None:
+                    Tr_velo2cam3 = np.matmul(R0_rect, Tr_velo2cam3)
+            
+            sensor_params = {}
+            sensor_params["RADAR"] = Tr_radar_to_velo
+            if P1 is not None and Tr_velo2cam1 is not None:
+                sensor_params["CAM_LEFT"] = (P1, Tr_velo2cam1[:3, :3], Tr_velo2cam1[:3, 3])
+            if P2 is not None and Tr_velo2cam2 is not None:
+                sensor_params["CAM_FRONT"] = (P2, Tr_velo2cam2[:3, :3], Tr_velo2cam2[:3, 3])
+            if P3 is not None and Tr_velo2cam3 is not None:
+                sensor_params["CAM_RIGHT"] = (P3, Tr_velo2cam3[:3, :3], Tr_velo2cam3[:3, 3])
+                
         return sensor_params
     
     def load_annotations(self, idx, label_dir):
         file_name = self.label_files[idx]
         label_path = os.path.join(label_dir, file_name)
-        P, r_velo2cam, t_velo2cam = self.load_calib(idx)["CAM_FRONT"]
+        P, r_velo2cam, t_velo2cam = self.load_calib_kitti(idx)["CAM_FRONT"]
         r_cam2velo, t_cam2velo = cam2velo(r_velo2cam, t_velo2cam)
         Tr_cam2velo = np.eye(4)
         Tr_cam2velo[:3, :3], Tr_cam2velo[:3, 3] = r_cam2velo, t_cam2velo
@@ -483,59 +502,132 @@ class KITTIDataset:
         return annos
     
     def bbox2image_visual(self, image, sensor_params, annos, cam="CAM_FRONT"):
-        P, r_velo2cam, t_velo2cam = sensor_params[cam]
-        image = bbox2image_projection(image, annos, r_velo2cam, t_velo2cam, P[:3,:3])
-        return image
+        if cam in sensor_params and image is not None:
+            P, r_velo2cam, t_velo2cam = sensor_params[cam]
+            image = bbox2image_projection(image, annos, r_velo2cam, t_velo2cam, P[:3,:3])
+            return image
+        else:
+            print(f"Warning: Camera {cam} parameters not found or image is None")
+            return image
     
     def __getitem__(self, idx):
         # load default parameter here
         original_idx = self.label_files[idx].replace(".txt", "")
         annos = self.load_annotations(idx, self.label_dir_2)
-        sensor_params = self.load_calib(idx)
+        sensor_params = self.load_calib_kitti(idx)
 
-        image1 = cv2.imread(os.path.join(self.image_1_dir, self.image_files[idx]))
-        image2 = cv2.imread(os.path.join(self.image_2_dir, self.image_files[idx]))
-        image3 = cv2.imread(os.path.join(self.image_3_dir, self.image_files[idx]))
+        image1 = None
+        image2 = None
+        image3 = None
         
-        image1 = self.bbox2image_visual(image1, sensor_params, annos, cam="CAM_LEFT")
-        image2 = self.bbox2image_visual(image2, sensor_params, annos, cam="CAM_FRONT")
-        image3 = self.bbox2image_visual(image3, sensor_params, annos, cam="CAM_RIGHT")
-        image = np.hstack((image1, image2, image3))
-    
-        P, r_velo2cam, t_velo2cam = sensor_params["CAM_FRONT"]
-        sensor_params = {
-            "rmat": r_velo2cam,
-            "tvec": t_velo2cam,
-            "K": P[:3, :3],
-            "dist": np.array([0.0, 0.0,	0.0, 0.0, 0.0]),
-        }
-        Tr_velo2cam = np.eye(4)
-        Tr_velo2cam[:3,:3] = r_velo2cam
-        Tr_velo2cam[:3,3] = t_velo2cam
+        image1_path = os.path.join(self.image_1_dir, self.image_files[idx])
+        image2_path = os.path.join(self.image_2_dir, self.image_files[idx])
+        image3_path = os.path.join(self.image_3_dir, self.image_files[idx])
+        
+        if os.path.exists(image1_path):
+            image1 = cv2.imread(image1_path)
+        else:
+            print(f"Warning: image1 not found at {image1_path}")
+            
+        if os.path.exists(image2_path):
+            image2 = cv2.imread(image2_path)
+        else:
+            print(f"Warning: image2 not found at {image2_path}")
+            
+        if os.path.exists(image3_path):
+            image3 = cv2.imread(image3_path)
+        else:
+            print(f"Warning: image3 not found at {image3_path}")
+        
+        if image1 is not None and "CAM_LEFT" in sensor_params:
+            image1 = self.bbox2image_visual(image1, sensor_params, annos, cam="CAM_LEFT")
+        if image2 is not None and "CAM_FRONT" in sensor_params:
+            image2 = self.bbox2image_visual(image2, sensor_params, annos, cam="CAM_FRONT")
+        if image3 is not None and "CAM_RIGHT" in sensor_params:
+            image3 = self.bbox2image_visual(image3, sensor_params, annos, cam="CAM_RIGHT")
+            
+        images_to_concat = []
+        if image1 is not None:
+            images_to_concat.append(image1)
+        if image2 is not None:
+            images_to_concat.append(image2)
+        if image3 is not None:
+            images_to_concat.append(image3)
+            
+        if len(images_to_concat) > 0:
+            image = np.hstack(tuple(images_to_concat))
+        else:
+            image = np.zeros((400, 600, 3), dtype=np.uint8)
+            
+        preds = self.load_annotations(idx, self.label_dir_1)
         points_rslidar = read_bin(os.path.join(self.lidar_dir, self.lidar_files[idx]))
+        radar_file = os.path.join(self.radar_dir, self.radar_files[idx])
         bev_image_1 = get_bev_image(points_rslidar, c=(225, 225, 225), r=1)
-        bev_image_1 = bbox2lidar_projection(bev_image_1, annos, (255, 0, 0))
+
+        points_radar = read_radar_bin(radar_file) if os.path.exists(radar_file) else None
+        Tr_radar_to_velo = sensor_params["RADAR"]
+        if points_radar is not None:
+            points_radar_extend = np.concatenate((points_radar, np.ones((points_radar.shape[0], 1))), axis=1)
+            radar2lidar = np.eye(4)
+            radar2lidar[:3, :4] = Tr_radar_to_velo
+            points_radar_rslidar = np.matmul(radar2lidar, points_radar_extend.T).T[:, :3]
+            bev_image_radar = get_bev_image(points_radar_rslidar, c=(0, 0, 255), r=3)
+            bev_image_1 = cv2.addWeighted(bev_image_radar, 0.5, bev_image_1, 0.5, 0)
+        bev_image_1 = bbox2lidar_projection(bev_image_1, preds, (255, 0, 0))
         bev_image_1 = bev_image_1[:int(0.55*bev_image_1.shape[0]),:,:]
+        bev_image_1 = cv2.putText(bev_image_1, 'Prediction', (10, 30), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         
         bev_image_2 = get_bev_image(points_rslidar, c=(225, 225, 225), r=1)
+        if points_radar is not None:
+            points_radar_extend = np.concatenate((points_radar, np.ones((points_radar.shape[0], 1))), axis=1)
+            radar2lidar = np.eye(4)
+            radar2lidar[:3, :4] = Tr_radar_to_velo
+            points_radar_rslidar = np.matmul(radar2lidar, points_radar_extend.T).T[:, :3]
+            bev_image_radar = get_bev_image(points_radar_rslidar, c=(0, 0, 255), r=3)
+            bev_image_2 = cv2.addWeighted(bev_image_radar, 0.5, bev_image_2, 0.5, 0)
         annos = self.load_annotations(idx, self.label_dir_1)
         bev_image_2 = bbox2lidar_projection(bev_image_2, annos, (0, 255, 0))
         bev_image_2 = bev_image_2[:int(0.55*bev_image_2.shape[0]),:,:]
         
-        bev_image = np.hstack((bev_image_2, bev_image_1))
+        text = "GT"
+        text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
+        text_x = bev_image_2.shape[1] - text_size[0] - 10
+        bev_image_2 = cv2.putText(bev_image_2, text, (text_x, 30), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         
-        image = cv2.resize(image, (bev_image.shape[1], int(image.shape[0] * (bev_image.shape[1] / image.shape[1]))))
-        image = np.vstack((image, bev_image))
+        bev_image = np.hstack((bev_image_1, bev_image_2))
+        
+        if image.shape[1] > 0: 
+            image = cv2.resize(image, (bev_image.shape[1], int(image.shape[0] * (bev_image.shape[1] / image.shape[1]))))
+            image = np.vstack((image, bev_image))
+        else:
+            image = bev_image
+            
         print(bev_image.shape, image.shape)
         return image, bev_image, original_idx
 
 if __name__ == "__main__":
     args = parse_option()
-    dataset = KITTIDataset(args.kitti_root)
-    os.makedirs(args.demo_path, exist_ok=True)
-    
-    for i in range(len(dataset)):
-        image, bev_image, original_idx = dataset[i]
-        cv2.imwrite(os.path.join(args.demo_path, original_idx + ".jpg"), image)
-        cv2.imwrite(os.path.join(args.demo_path, original_idx + "_bev.jpg"), bev_image)
+    try:
+        dataset = KITTIDataset(args.kitti_root, args.pred_path)
+        os.makedirs(args.demo_path, exist_ok=True)
+        
+        if len(dataset) == 0:
+            print("Error: No data found in the dataset.")
+            exit(1)
+        
+        for i in range(len(dataset)):
+            try:
+                image, bev_image, original_idx = dataset[i]
+                print(f"Processing {i}: {original_idx}")
+                cv2.imwrite(os.path.join(args.demo_path, original_idx + ".jpg"), image)
+            except Exception as e:
+                print(f"Error processing item {i}: {str(e)}")
+                continue
+                
+        print("Visualization completed successfully.")
+    except Exception as e:
+        print(f"Error initializing dataset: {str(e)}")
+        exit(1)
         

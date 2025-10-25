@@ -1,9 +1,9 @@
 # not include the pose correction module, please refer to original repo.
 
 name: v2x_radar_lidar_coalign
-root_dir: "../../data/v2x-radar/mini/v2x-radar-c-blend-png-multi-classes/train"
-validate_dir: "../../data/v2x-radar/mini/v2x-radar-c-blend-png-multi-classes/validate"
-test_dir: "../../data/v2x-radar/mini/v2x-radar-c-blend-png-multi-classes/validate"
+root_dir: "../../data/v2x-radar/v2x-radar-c-blend-png-multi-classes/train"
+validate_dir: "../../data/v2x-radar/v2x-radar-c-blend-png-multi-classes/validate"
+test_dir: "../../data/v2x-radar/v2x-radar-c-blend-png-multi-classes/validate"
 
 yaml_parser: "load_general_params"
 train_params:

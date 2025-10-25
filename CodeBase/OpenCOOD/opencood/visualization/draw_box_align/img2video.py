@@ -6,12 +6,6 @@ import os
 
 projnames = ['/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_v2xvit_w_2022_09_05_18_52_53/vis_0.4_0.4_0_0_video_vis',
              '/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_v2xvit_w_2022_09_05_18_52_53/vis_0.6_0.6_0_0_video_vis']
-# projnames = ['/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_disconet_w_2022_09_02_16_19_51/vis_0.4_0.4_0_0_video_vis',
-#              '/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_disconet_w_2022_09_02_16_19_51/vis_0.6_0.6_0_0_video_vis']
-# projnames = ['/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_v2vnet_robust_new/vis_0.4_0.4_0_0_video_vis',
-#              '/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_v2vnet_robust_new/vis_0.6_0.6_0_0_video_vis']
-# projnames = ['/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_ms_ba/vis_0.4_0.4_0_0_video_vis',
-#              '/GPFS/rhome/yifanlu/OpenCOOD/opencood/logs/OPV2V_npj_ms_ba/vis_0.6_0.6_0_0_video_vis']
 
 print(projnames)
 

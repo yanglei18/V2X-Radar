@@ -225,7 +225,7 @@ def generate_info_kitti(kitti_root, split='train'):
 def main():
     parser = argparse.ArgumentParser(description="Create Dataset Infos in KITTI format ...")
     parser.add_argument("--data_root", type=str,
-                        default="../../data/v2x-radar/mini/v2x-radar-v/",
+                        default="../../data/v2x-radar/v2x-radar-v/",
                         help="Path to Dataset root in KITTI format")
     args = parser.parse_args()
 

@@ -30,8 +30,8 @@ img_conf = dict(img_mean=[123.675, 116.28, 103.53],
 model_type = 1 # 0: BEVDepth, 1: BEVHeight, 2: BEVHeight++
 
 return_depth = False
-data_root = "../../data/v2x-radar/mini/v2x-radar-v/"
-gt_label_path = "../../data/v2x-radar/mini/v2x-radar-v/training/label_2"
+data_root = "../../data/v2x-radar/v2x-radar-v/"
+gt_label_path = "../../data/v2x-radar/v2x-radar-v/training/label_2"
 bev_dim = 160 if model_type==2 else 80
  
 backbone_conf = {

@@ -1,7 +1,7 @@
 name: HEAL_v2xset_m1_LSSeff48_pretrain_Ours-car1
-root_dir: "../../data/v2x-radar/mini/v2x-radar-c/train"
-validate_dir: "../../data/v2x-radar/mini/v2x-radar-c/validate"
-test_dir: "../../data/v2x-radar/mini/v2x-radar-c/validate"
+root_dir: "../../data/v2x-radar/v2x-radar-c/train"
+validate_dir: "../../data/v2x-radar/v2x-radar-c/validate"
+test_dir: "../../data/v2x-radar/v2x-radar-c/validate"
 
 yaml_parser: "load_general_params"
 train_params:

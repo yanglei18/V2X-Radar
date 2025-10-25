@@ -129,9 +129,6 @@ def visualize(infer_result, pcd, pc_range, save_path, method='3d', left_hand=Fal
                     render_dict = {'m1': 'L1', 'm2':"C1", 'm3':'L2', 'm4':'C2'}
                     canvas.draw_boxes(cav_box_np[i:i+1], colors=color, texts=[modality_name])
                     # canvas.draw_boxes(cav_box_np[i:i+1], colors=color, texts=[render_dict[modality_name]], box_text_size=1.5, box_line_thickness=5) # paper visualization
-
-
-
         elif method == '3d':
             canvas = canvas_3d.Canvas_3D(left_hand=left_hand)
             canvas_xy, valid_mask = canvas.get_canvas_coords(pcd_np)

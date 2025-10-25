@@ -38,30 +38,28 @@ python setup.py develop
 V2X-Radar
 ├── data
 │   ├── v2x-radar
-│   │   ├── mini
-│   │   │   ├── v2x-radar-i   # KITTI Format
-│   │   │   │   ├── training
-│   │   │   │   │   ├── velodyne
-│   │   │   │   │   ├── radar # transformed on the LiDAR frame
-│   │   │   │   │   ├── calib
-│   │   │   │   │   ├── image_1
+│   │   ├── v2x-radar-i   # KITTI Format
+│   │   │   ├── training
+│   │   │   │   ├── velodyne
+│   │   │   │   ├── radar # transformed on the LiDAR frame
+│   │   │   │   ├── calib
+│   │   │   │   ├── image_1
 │   │   │   │   │   ├── image_2
-│   │   │   │   │   ├── image_3
-│   │   │   │   │   ├── label_2
-│   │   │   │   ├── ImageSets
-│   │   │   │   │   ├── train.txt
-│   │   │   │   │   ├── val.txt
-│   │   │   │   ├── v2x-radar-v # KITTI Format
-│   │   │   │   ├── training
-│   │   │   │   │   ├── velodyne
-│   │   │   │   │   ├── radar   # transformed on the LiDAR frame
-│   │   │   │   │   ├── calib
-│   │   │   │   │   ├── image_2
-│   │   │   │   │   ├── label_2
-│   │   │   │   ├── ImageSets
-│   │   │   │   │   ├── train.txt
-│   │   │   │   │   ├── val.txt
-│   │   ├── trainval-full  # release soon
+│   │   │   │   ├── image_3
+│   │   │   │   ├── label_2
+│   │   │   ├── ImageSets
+│   │   │   │   ├── train.txt
+│   │   │   │   ├── val.txt
+│   │   ├── v2x-radar-v # KITTI Format
+│   │   │   ├── training
+│   │   │   │   ├── velodyne
+│   │   │   │   ├── radar   # transformed on the LiDAR frame
+│   │   │   │   ├── calib
+│   │   │   │   ├── image_2
+│   │   │   │   ├── label_2
+│   │   │   ├── ImageSets
+│   │   │   │   ├── train.txt
+│   │   │   │   ├── val.txt
 │   │   ├── ...
 ```
 **b.** Prepare infos for V2X-Radar-I / V2X-Radar-V datasets.
@@ -154,7 +152,7 @@ python scripts/gen_info_kitti.py --data_root data/kitti
 ### 2.5. Visualize the dataset in KITTI format
 ```shell
 python scripts/data_converter/visual_tools_kitti.py --data_root ../../data/kitti --demo_dir ./demo
-python scripts/data_converter/visual_tools_v2x_radar.py --data_root ../../data/v2x-radar/mini/v2x-radar-i --demo_dir ./demo
+python scripts/data_converter/visual_tools_v2x_radar.py --data_root ../../data/v2x-radar/v2x-radar-i --demo_dir ./demo
 ```
 
 ## 3. Train and Eval

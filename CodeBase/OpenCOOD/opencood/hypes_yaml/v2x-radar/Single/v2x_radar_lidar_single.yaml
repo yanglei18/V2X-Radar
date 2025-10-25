@@ -1,7 +1,7 @@
 name: v2x_radar_lidar_single
-root_dir: "../../data/v2x-radar/mini/v2x-radar-c/train"
-validate_dir: "../../data/v2x-radar/mini/v2x-radar-c/validate"
-test_dir: "../../data/v2x-radar/mini/v2x-radar-c/validate"
+root_dir: "../../data/v2x-radar/v2x-radar-c/train"
+validate_dir: "../../data/v2x-radar/v2x-radar-c/validate"
+test_dir: "../../data/v2x-radar/v2x-radar-c/validate"
 
 yaml_parser: "load_general_params"
 train_params:

@@ -58,8 +58,8 @@ def transform_points(points, radar2velo):
 
 
 if __name__ == "__main__":
-    src_root = "../../data/v2x-radar/mini/v2x-radar-c"
-    dest_root = "../../data/v2x-radar/mini/v2x-radar-c-radar_velo"
+    src_root = "../../data/v2x-radar/v2x-radar-c"
+    dest_root = "../../data/v2x-radar/v2x-radar-c-radar_velo"
     print("hello world ...")
     
     for split in ["train", "validate"]:
