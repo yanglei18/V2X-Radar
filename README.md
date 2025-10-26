@@ -135,7 +135,7 @@ V2X-Radar
 │   │   │   │   │   │   ├── 00000_camera0.jpg - 00250_camera0.jpg # left camera images
 │   │   │   │   │   │   ├── 00000_camera1.jpg - 00250_camera1.jpg # front camera images
 │   │   │   │   │   │   ├── 00000_camera2.jpg - 00250_camera2.jpg # right camera images
-│   │   │   │   │   ├── 142 # Vehicle Side 
+│   │   │   │   │   ├── 142 # Vehicle Side  
 │   │   │   ├── validate
 │   │   │   ├── test
 │   ├── other datasets
