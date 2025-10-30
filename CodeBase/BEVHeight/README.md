@@ -41,7 +41,7 @@ V2X-Radar
 │   │   ├── v2x-radar-i   # KITTI Format
 │   │   │   ├── training
 │   │   │   │   ├── velodyne
-│   │   │   │   ├── radar # transformed on the LiDAR frame
+│   │   │   │   ├── radar
 │   │   │   │   ├── calib
 │   │   │   │   ├── image_1
 │   │   │   │   │   ├── image_2
@@ -53,7 +53,7 @@ V2X-Radar
 │   │   ├── v2x-radar-v # KITTI Format
 │   │   │   ├── training
 │   │   │   │   ├── velodyne
-│   │   │   │   ├── radar   # transformed on the LiDAR frame
+│   │   │   │   ├── radar 
 │   │   │   │   ├── calib
 │   │   │   │   ├── image_2
 │   │   │   │   ├── label_2
