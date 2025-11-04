@@ -92,7 +92,7 @@ Supported by the [THU OpenMDP Lab](http://openmpd.com/column/V2X-Radar).
     - [x] [HEAL [ICLR 2024]](https://arxiv.org/abs/1905.05265)
 
 ## Data Download
-Please check our [website](https://huggingface.co/datasets/yanglei18/V2X-Radar) to download the data (OPV2V / KITTI format).
+Please check our [website](https://huggingface.co/datasets/yanglei18/V2X-Radar) to download the data ([OPV2V](https://github.com/DerrickXuNu/OpenCOOD/blob/main/docs/md_files/data_annotation_tutorial.md) / [KITTI](https://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) format).
 
 After downloading the data, please put the data in the following structure:
 ```shell
