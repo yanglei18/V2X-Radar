@@ -12,8 +12,8 @@ from opencood.utils.common_utils import limit_period
 from icecream import ic
 
 class FpvrcnnPostprocessor(VoxelPostprocessor):
-    def __init__(self, anchor_params, train):
-        super(FpvrcnnPostprocessor, self).__init__(anchor_params, train)
+    def __init__(self, anchor_params, params, train):
+        super(FpvrcnnPostprocessor, self).__init__(anchor_params, params, train)
         # redetect box in stage2
         self.redet = True if 'redet' in anchor_params and anchor_params['redet'] else False
         print("Postprocessor Stage2 ReDetect: ", self.redet)
@@ -158,7 +158,7 @@ class FpvrcnnPostprocessor(VoxelPostprocessor):
         return batch_pred_boxes3d, batch_scores
 
     def post_process_stage2(self, data_dict):
-        from opencood.pcdet_utils.iou3d_nms.iou3d_nms_utils import nms_gpu
+        from packages.pcdet_utils.iou3d_nms.iou3d_nms_utils import nms_gpu
         if 'stage2_out' not in data_dict['ego'].keys():
             return None, None
         output_dict = data_dict['ego']['stage2_out']
@@ -225,7 +225,7 @@ class FpvrcnnPostprocessor(VoxelPostprocessor):
     #     """
     #     it's a pseduo stage2 process, but only output the stage1 rpn result.
     #     """
-    #     from opencood.pcdet_utils.iou3d_nms.iou3d_nms_utils import nms_gpu
+    #     from packages.pcdet_utils.iou3d_nms.iou3d_nms_utils import nms_gpu
     #     if 'stage2_out' not in data_dict['ego'].keys():
     #         return None, None
     #     output_dict = data_dict['ego']['stage2_out']

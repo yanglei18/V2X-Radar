@@ -145,7 +145,6 @@ class PointCloudFilter(object):
         
         x_img = np.clip(x_img, 0, bev_img.shape[1] - 1)
         y_img = np.clip(y_img, 0, bev_img.shape[0] - 1)
-        print(bev_img.shape)
         bev_img[y_img, x_img] = 255
         return bev_img
 

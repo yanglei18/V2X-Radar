@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Subset
 import numpy as np
 
 import opencood.hypes_yaml.yaml_utils as yaml_utils
-from opencood.tools import train_utils, inference_utils
+from opencood.tools import train_utils, test_utils
 from opencood.data_utils.datasets import build_dataset
 from opencood.utils import eval_utils
 from opencood.visualization import vis_utils, my_vis, simple_vis
@@ -125,27 +125,27 @@ def main():
                     uncertainty_tensor = None
                     if opt.fusion_method == 'late':
                         pred_box_tensor, pred_score, gt_box_tensor = \
-                            inference_utils.inference_late_fusion(batch_data,
+                            test_utils.inference_late_fusion(batch_data,
                                                                 model,
                                                                 opencood_dataset)
                     elif opt.fusion_method == 'early':
                         pred_box_tensor, pred_score, gt_box_tensor = \
-                            inference_utils.inference_early_fusion(batch_data,
+                            test_utils.inference_early_fusion(batch_data,
                                                                 model,
                                                                 opencood_dataset)
                     elif opt.fusion_method == 'intermediate':
                         pred_box_tensor, pred_score, gt_box_tensor = \
-                            inference_utils.inference_intermediate_fusion(batch_data,
+                            test_utils.inference_intermediate_fusion(batch_data,
                                                                         model,
                                                                         opencood_dataset)
                     elif opt.fusion_method == 'no':
                         pred_box_tensor, pred_score, gt_box_tensor = \
-                            inference_utils.inference_no_fusion(batch_data,
+                            test_utils.inference_no_fusion(batch_data,
                                                                         model,
                                                                         opencood_dataset)
                     elif opt.fusion_method == 'no_w_uncertainty':
                         pred_box_tensor, pred_score, gt_box_tensor, uncertainty_tensor = \
-                            inference_utils.inference_no_fusion_w_uncertainty(batch_data,
+                            test_utils.inference_no_fusion_w_uncertainty(batch_data,
                                                                         model,
                                                                         opencood_dataset)
                     else:
@@ -172,7 +172,7 @@ def main():
                         npy_save_path = os.path.join(opt.model_dir, 'npy' + suffix)
                         if not os.path.exists(npy_save_path):
                             os.makedirs(npy_save_path)
-                        inference_utils.save_prediction_gt(pred_box_tensor,
+                        test_utils.save_prediction_gt(pred_box_tensor,
                                                         gt_box_tensor,
                                                         batch_data['ego'][
                                                             'origin_lidar'][0],

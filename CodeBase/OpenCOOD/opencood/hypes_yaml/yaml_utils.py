@@ -10,8 +10,7 @@ import math
 
 import numpy as np
 
-
-def load_yaml(file, opt=None):
+def config_parser(opt):
     """
     Load yaml file and return a dictionary.
 
@@ -27,9 +26,34 @@ def load_yaml(file, opt=None):
     param : dict
         A dictionary that contains defined parameters.
     """
-    if opt and opt.model_dir:
-        file = os.path.join(opt.model_dir, 'config.yaml')
+    file = getattr(opt, 'hypes_yaml', None)
+    resume_dir = getattr(opt, 'resume_dir', None) # for resume training
+    ckpt_path = getattr(opt, 'ckpt_path', None) # for testing
 
+    if resume_dir:
+        file = os.path.join(os.path.dirname(resume_dir), 'config.yaml')
+        print("================ Resume Training ====================")
+        print(f"load resume from {resume_dir}, cover config file now.")
+
+    stream = open(file, 'r')
+    loader = yaml.Loader
+    loader.add_implicit_resolver(
+        u'tag:yaml.org,2002:float',
+        re.compile(u'''^(?:
+         [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+        |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+        |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+        |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+        |[-+]?\\.(?:inf|Inf|INF)
+        |\\.(?:nan|NaN|NAN))$''', re.X),
+        list(u'-+0123456789.'))
+    param = yaml.load(stream, Loader=loader)
+    if "yaml_parser" in param:
+        param = eval(param["yaml_parser"])(param)
+
+    return param
+
+def load_yaml(file):
     stream = open(file, 'r')
     loader = yaml.Loader
     loader.add_implicit_resolver(

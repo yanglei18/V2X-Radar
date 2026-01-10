@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from opencood.pcdet_utils.iou3d_nms.iou3d_nms_utils import boxes_iou3d_gpu
+from packages.pcdet_utils.iou3d_nms.iou3d_nms_utils import boxes_iou3d_gpu
 from opencood.utils.box_utils import corner_to_center_torch, boxes_to_corners_3d, project_box3d, project_points_by_matrix_torch, get_mask_for_boxes_within_range_torch
 from opencood.utils.transformation_utils import x1_to_x2
 from icecream import ic

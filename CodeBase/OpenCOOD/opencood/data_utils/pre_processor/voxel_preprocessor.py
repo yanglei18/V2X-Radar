@@ -17,8 +17,8 @@ from opencood.data_utils.pre_processor.base_preprocessor import \
 
 
 class VoxelPreprocessor(BasePreprocessor):
-    def __init__(self, preprocess_params, train):
-        super(VoxelPreprocessor, self).__init__(preprocess_params, train)
+    def __init__(self, preprocess_params, params, train):
+        super(VoxelPreprocessor, self).__init__(preprocess_params, params, train)
         # TODO: add intermediate lidar range later
         self.lidar_range = self.params['cav_lidar_range']
 

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from opencood.pcdet_utils.pointnet2.pointnet2_stack import voxel_pool_modules as voxelpool_stack_modules
+from packages.pcdet_utils.pointnet2.pointnet2_stack import voxel_pool_modules as voxelpool_stack_modules
 from opencood.utils import common_utils
 
 

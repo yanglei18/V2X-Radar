@@ -11,9 +11,15 @@ CodeBase/OpenCOOD/opencood/logs/
 CodeBase/BEVHeight/BEVHeight.egg-info/
 CodeBase/OpenCOOD/OpenCOOD.egg-info/
 __pycache__/
+CodeBase/OpenCOOD/bev_pool.egg-info/
+CodeBase/OpenCOOD/bev_pool_v2.egg-info/
+CodeBase/OpenCOOD/opencood/work_dirs
+CodeBase/OpenCOOD/opencood/work_dirs_v2xradar
 ckpt/
 build/
 hub/
+.trae/
+CodeBase/OpenCOOD/opencood/pretrained/
 data/
 *.out
 *.so

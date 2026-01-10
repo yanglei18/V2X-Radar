@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import copy
 
-from opencood.tools.inference_utils import get_cav_box
+from opencood.tools.test_utils import get_cav_box
 import opencood.visualization.simple_plot3d.canvas_3d as canvas_3d
 import opencood.visualization.simple_plot3d.canvas_bev as canvas_bev
 

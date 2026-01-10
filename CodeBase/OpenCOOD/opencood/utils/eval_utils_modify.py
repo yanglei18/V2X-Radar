@@ -41,11 +41,46 @@ def calculate_center_distance(box):
     distance = np.linalg.norm(center[:2])  # Only consider x and y for distance
     return distance
 
-def caluclate_tp_fp(det_boxes, det_score, gt_boxes, result_stat, iou_thresh, distance_ranges):
+def _print_scene_stats(scene_info, iou_dist, stats_collected):
+    """Print aggregated stats for a scene."""
+    if iou_dist and len(iou_dist) > 0:
+        iou_array = np.array(iou_dist)
+        bins = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        hist, _ = np.histogram(iou_array, bins=bins)
+        hist_str = " ".join([f"{count}" for count in hist])
+    else:
+        hist_str = "0 0 0 0 0 0 0 0 0 0"
+
+    print(f"[{scene_info}] IoU_hist: {hist_str}")
+    print(f"[{scene_info}] Confusion Matrix:")
+    for thresh in sorted(stats_collected.keys()):
+        stats = stats_collected[thresh]
+        prec = stats['tp']/(stats['tp']+stats['fp']) if (stats['tp']+stats['fp']) > 0 else 0
+        recall = stats['tp']/(stats['tp']+stats['fn']) if (stats['tp']+stats['fn']) > 0 else 0
+        print(f"  IoU@{thresh}: TP={stats['tp']}, FP={stats['fp']}, FN={stats['fn']}, GT={stats['gt']}, Prec={prec:.3f}, Rec={recall:.3f}")
+    print("-" * 80)
+
+def _init_scene_collection(scene_info, iou_distribution):
+    """Initialize stats collection for a new scene."""
+    caluclate_tp_fp._iou_dist_collected = iou_distribution
+    caluclate_tp_fp._stats_collected = {}
+    caluclate_tp_fp._thresh_count = 0
+    caluclate_tp_fp._current_scene = scene_info
+
+def _handle_scene_switch(scene_info, iou_distribution):
+    """Handle scene switch: print previous scene and init new one."""
+    if caluclate_tp_fp._thresh_count >= 3 and caluclate_tp_fp._current_scene:
+        _print_scene_stats(caluclate_tp_fp._current_scene, caluclate_tp_fp._iou_dist_collected, caluclate_tp_fp._stats_collected)
+    _init_scene_collection(scene_info, iou_distribution)
+
+def caluclate_tp_fp(det_boxes, det_score, gt_boxes, result_stat, iou_thresh, distance_ranges, scene_info=None, collect_stats=False):
     """
     Calculate the true positive and false positive numbers of the current
     frames for different distance ranges.
-    Parameters
+
+    Args:
+        scene_info: Scene information for logging (optional)
+        collect_stats: If True, collect stats for all IoU thresholds and print summary
     ----------
     det_boxes : torch.Tensor
         The detection bounding box, shape (N, 8, 3) or (N, 4, 2).
@@ -61,11 +96,50 @@ def caluclate_tp_fp(det_boxes, det_score, gt_boxes, result_stat, iou_thresh, dis
         The list of distance ranges.
     """
 
-    if det_boxes is not None:
-        # Convert bounding boxes to numpy arrays
+    # GT 必须存在，否则无法评估
+    assert gt_boxes is not None, "GT boxes must be provided"
+    gt_boxes = common_utils.torch_tensor_to_numpy(gt_boxes)
+    gt_count_overall = gt_boxes.shape[0]
+    
+    # 当没有预测框时，构造空数组，确保仍记录 GT 数量
+    if det_boxes is None:
+        # 当没有预测框时，所有 GT 都是 FN，直接填充统计结果
+        result_stat['overall'][iou_thresh]['score'] += []
+        result_stat['overall'][iou_thresh]['fp'] += []
+        result_stat['overall'][iou_thresh]['tp'] += []
+        result_stat['overall'][iou_thresh]['gt'] += gt_count_overall
+
+        # Handle stats collection mode for empty detections
+        if collect_stats:
+            if not hasattr(caluclate_tp_fp, '_iou_dist_collected') or caluclate_tp_fp._iou_dist_collected is None:
+                _init_scene_collection(scene_info, [])
+            elif caluclate_tp_fp._current_scene != scene_info:
+                _handle_scene_switch(scene_info, [])
+
+            caluclate_tp_fp._stats_collected[iou_thresh] = {'tp': 0, 'fp': 0, 'gt': gt_count_overall, 'fn': gt_count_overall}
+            caluclate_tp_fp._thresh_count += 1
+
+            if caluclate_tp_fp._thresh_count >= 3 and scene_info:
+                _print_scene_stats(scene_info, caluclate_tp_fp._iou_dist_collected, caluclate_tp_fp._stats_collected)
+                caluclate_tp_fp._iou_dist_collected = None
+                caluclate_tp_fp._stats_collected = {}
+                caluclate_tp_fp._thresh_count = 0
+                caluclate_tp_fp._current_scene = None
+            # Continue to distance-specific statistics (don't return here)
+
+        # Distance-specific statistics
+        gt_center_distances = [calculate_center_distance(box) for box in gt_boxes]
+
+        for dist_range in distance_ranges:
+            gt_count = sum(1 for dist in gt_center_distances if dist_range[0] <= dist < dist_range[1])
+            result_stat[str(dist_range)][iou_thresh]['score'] += []
+            result_stat[str(dist_range)][iou_thresh]['fp'] += []
+            result_stat[str(dist_range)][iou_thresh]['tp'] += []
+            result_stat[str(dist_range)][iou_thresh]['gt'] += gt_count
+        return
+    else:
         det_boxes = common_utils.torch_tensor_to_numpy(det_boxes)
         det_score = common_utils.torch_tensor_to_numpy(det_score)
-        gt_boxes = common_utils.torch_tensor_to_numpy(gt_boxes)
 
         # Sort the prediction bounding box by score
         score_order_descend = np.argsort(-det_score)
@@ -79,12 +153,19 @@ def caluclate_tp_fp(det_boxes, det_score, gt_boxes, result_stat, iou_thresh, dis
         # Overall statistics
         fp_overall = []
         tp_overall = []
-        gt_count_overall = gt_boxes.shape[0]
         
+        # collect IoU distribution for analysis
+        iou_distribution = []
+
         # match prediction and gt bounding box, in confidence descending order
         for i in range(score_order_descend.shape[0]):
             det_polygon = det_polygon_list[i]
             ious = common_utils.compute_iou(det_polygon, gt_polygon_list)
+
+            # record max IoU for this prediction
+            if len(ious) > 0:
+                max_iou = np.max(ious)
+                iou_distribution.append(max_iou)
 
             if len(gt_polygon_list) == 0 or np.max(ious) < iou_thresh:
                 fp_overall.append(1)
@@ -101,6 +182,29 @@ def caluclate_tp_fp(det_boxes, det_score, gt_boxes, result_stat, iou_thresh, dis
         result_stat['overall'][iou_thresh]['fp'] += fp_overall
         result_stat['overall'][iou_thresh]['tp'] += tp_overall
         result_stat['overall'][iou_thresh]['gt'] += gt_count_overall
+
+        # Handle stats collection mode
+        if collect_stats:
+            if not hasattr(caluclate_tp_fp, '_iou_dist_collected') or caluclate_tp_fp._iou_dist_collected is None:
+                _init_scene_collection(scene_info, iou_distribution)
+            elif caluclate_tp_fp._current_scene != scene_info:
+                _handle_scene_switch(scene_info, iou_distribution)
+
+            caluclate_tp_fp._stats_collected[iou_thresh] = {
+                'tp': sum(tp_overall),
+                'fp': sum(fp_overall),
+                'gt': gt_count_overall,
+                'fn': max(gt_count_overall - sum(tp_overall), 0)
+            }
+            caluclate_tp_fp._thresh_count += 1
+
+            if caluclate_tp_fp._thresh_count >= 3 and scene_info:
+                _print_scene_stats(scene_info, caluclate_tp_fp._iou_dist_collected, caluclate_tp_fp._stats_collected)
+                caluclate_tp_fp._iou_dist_collected = None
+                caluclate_tp_fp._stats_collected = {}
+                caluclate_tp_fp._thresh_count = 0
+                caluclate_tp_fp._current_scene = None
+            # Continue to distance-specific statistics (don't return here)
 
         # Distance-specific statistics
         # Calculate the center distances

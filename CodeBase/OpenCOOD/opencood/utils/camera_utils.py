@@ -150,12 +150,15 @@ img_to_tensor = torchvision.transforms.ToTensor() # [0,255] -> [0,1]
 
 
 def gen_dx_bx(xbound, ybound, zbound):
-    dx = torch.Tensor([row[2] for row in [xbound, ybound, zbound]])
+    # bound: [low, high, bin_size]
+    # dx: Voxel (define resolution of nx)
+    # bx: Base Offset(for localize center of voxel)
+    # nx: Grid Size
+    dx = torch.Tensor([row[2] for row in [xbound, ybound, zbound]])                     # grid_interval
     bx = torch.Tensor([row[0] + row[2]/2.0 for row in [xbound, ybound, zbound]])
-    nx = torch.LongTensor([(row[1] - row[0]) / row[2] for row in [xbound, ybound, zbound]])
-
-    return dx, bx, nx
-
+    nx = torch.Tensor([(row[1] - row[0]) / row[2] for row in [xbound, ybound, zbound]]) # grid_size
+    lx = torch.Tensor([row[0] for row in [xbound, ybound, zbound]])                     # grid_lower_bound
+    return dx, bx, nx, lx
 
 def bin_depths(depth_map, mode, depth_min, depth_max, num_bins, target=True):
     """

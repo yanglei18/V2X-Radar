@@ -18,8 +18,8 @@ from opencood.visualization import vis_utils
 
 
 class BevPostprocessor(BasePostprocessor):
-    def __init__(self, anchor_params, train):
-        super(BevPostprocessor, self).__init__(anchor_params, train)
+    def __init__(self, anchor_params, params, train):
+        super(BevPostprocessor, self).__init__(anchor_params, params, train)
         # self.geometry_param = anchor_params["geometry"]
         self.geometry_param = anchor_params["geometry_param"]
 

@@ -15,7 +15,8 @@ __all__ = {
 }
 
 
-def build_preprocessor(preprocess_cfg, train):
+def build_preprocessor(params, train):
+    preprocess_cfg = params["preprocess"]
     process_method_name = preprocess_cfg['core_method']
     error_message = f"{process_method_name} is not found. " \
                      f"Please add your processor file's name in opencood/" \
@@ -26,6 +27,7 @@ def build_preprocessor(preprocess_cfg, train):
 
     processor = __all__[process_method_name](
         preprocess_params=preprocess_cfg,
+        params=params,
         train=train
     )
 
