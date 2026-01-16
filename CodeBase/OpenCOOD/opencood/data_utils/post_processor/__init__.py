@@ -17,10 +17,12 @@ __all__ = {
 }
 
 
-def build_postprocessor(anchor_cfg, train):
+def build_postprocessor(params, train):
+    anchor_cfg = params["postprocess"]
     process_method_name = anchor_cfg['core_method']
     anchor_generator = __all__[process_method_name](
         anchor_params=anchor_cfg,
+        params=params,
         train=train
     )
 

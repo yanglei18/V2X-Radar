@@ -24,8 +24,8 @@ from opencood.utils.common_utils import limit_period
 
 
 class UncertaintyVoxelPostprocessor(VoxelPostprocessor):
-    def __init__(self, anchor_params, train):
-        super(UncertaintyVoxelPostprocessor, self).__init__(anchor_params, train)
+    def __init__(self, anchor_params, params, train):
+        super(UncertaintyVoxelPostprocessor, self).__init__(anchor_params, params, train)
     
     def post_process_stage1(self, stage1_output_dict, anchor_box):
         """

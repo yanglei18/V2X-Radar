@@ -1,0 +1,162 @@
+name: v2x_radar_collab_cameraonly_bevdepth_coalign
+root_dir: "../../data/v2x-radar/v2x-radar-c/train"
+validate_dir: "../../data/v2x-radar/v2x-radar-c/validate"
+test_dir: "../../data/v2x-radar/v2x-radar-c/validate"
+
+yaml_parser: "load_general_params"
+train_params:
+  batch_size: &batch_size 1
+  epoches: 52
+  eval_freq: 4
+  save_freq: 4
+  max_cav: 5
+
+comm_range: 300
+input_source: ['camera']
+label_type: 'camera'
+cav_lidar_range: &cav_lidar [-102.4, -102.4, -8.5, 102.4, 102.4, 3.5]
+
+fusion:
+  core_method: 'unified'
+  fusion_method: 'intermediate'
+  dataset: 'v2xset'
+  args: 
+    proj_first: false
+
+preprocess:
+  core_method: 'SpVoxelPreprocessor'
+  args:
+    voxel_size: &voxel_size [0.4, 0.4, 12]
+    max_points_per_voxel: 32
+    max_voxel_train: 32000
+    max_voxel_test: 70000
+  cav_lidar_range: *cav_lidar
+
+postprocess:
+  core_method: 'VoxelPostprocessor'
+  gt_range: *cav_lidar
+  anchor_args:
+    cav_lidar_range: *cav_lidar
+    l: 3.9
+    w: 1.6
+    h: 1.56
+    r: &anchor_yaw [0, 90]
+    feature_stride: 2
+    num: &anchor_num 2
+  target_args:
+    pos_threshold: 0.6
+    neg_threshold: 0.45
+    score_threshold: 0.05
+  order: 'hwl'
+  max_num: 150
+  nms_thresh: 0.15
+  dir_args: &dir_args
+    dir_offset: 0.7853
+    num_bins: 2
+    anchor_yaw: *anchor_yaw
+
+heter:
+  assignment_path: "docs/modality_assign/v2x_radar_4modality.json"
+  ego_modality: &ego_modality "m1"
+  mapping_dict:
+    m1: m1
+    m2: m1
+    m3: m1
+    m4: m1
+  modality_setting:
+    m1:
+      sensor_type: &sensor_type_m1 'camera'
+      core_method: &core_method_m1 "lift_splat_shoot"
+      grid_conf: &grid_conf_m1
+        xbound: [-102.4, 102.4, 0.4]
+        ybound: [-102.4, 102.4, 0.4]
+        zbound: [-10, 10, 20.0]
+        ddiscr: [2, 100, 98]
+        mode: 'UD'
+      data_aug_conf: &data_aug_conf_m1
+        resize_lim: [0.33, 0.37]
+        final_dim: [320, 512]
+        rot_lim: [0, 0]
+        H: 864
+        W: 1536
+        rand_flip: False
+        bot_pct_lim: [0.0, 0.0]
+        image_list: [0,1,2]
+        Ncams: 3
+
+model:
+  core_method: heter_model_baseline_ms
+  args:
+    ego_modality: *ego_modality
+    lidar_range: *cav_lidar
+    supervise_single: false
+    m1:
+      core_method: *core_method_m1
+      sensor_type: *sensor_type_m1
+      encoder_args:
+        anchor_number: *anchor_num
+        grid_conf: *grid_conf_m1
+        data_aug_conf: *data_aug_conf_m1
+        img_downsample: 8
+        img_features: &img_feature 128
+        use_depth_gt: false
+        depth_supervision: true
+        camera_encoder: EfficientNet
+        pretrained_path: opencood/pretrained/efficientnet_depth_v2xradar.pth
+      camera_mask_args:
+        cav_lidar_range: *cav_lidar
+        grid_conf: *grid_conf_m1
+      backbone_args:
+        layer_nums: [3]
+        layer_strides: [2]
+        num_filters: [64]
+        inplanes: 128
+      aligner_args:
+        core_method: identity
+    fusion_method: ["att", "att", "att"]
+    fusion_method_config:
+      - feat_dim: 64
+      - feat_dim: 128
+      - feat_dim: 256
+    fusion_backbone:
+      resnext: true
+      layer_nums: [3, 5, 8]
+      layer_strides: [1, 2, 2]
+      num_filters: [64, 128, 256]
+      upsample_strides: [1, 2, 4]
+      num_upsample_filter: [128, 128, 128]
+      anchor_number: *anchor_num
+    shrink_header: 
+      kernal_size: [ 3 ]
+      stride: [ 1 ]
+      padding: [ 1 ]
+      dim: [ 256 ]
+      input_dim: 384
+    in_head: 256
+    anchor_number: *anchor_num
+    dir_args: *dir_args
+
+loss:
+  core_method: point_pillar_depth_loss
+  args:
+    pos_cls_weight: 2.0
+    cls_weight: 1.0
+    reg_weight: 2.0
+    dir_weight: 0.2
+    dir_args: *dir_args
+    depth_weight: 10.0
+
+optimizer:
+  core_method: Adam
+  lr: 0.002
+  args:
+    eps: 1e-10
+    weight_decay: 1e-4
+
+lr_scheduler:
+  core_method: CosineAnnealing
+  by_epoch: false
+  warmup: linear
+  warmup_iters: 500
+  warmup_ratio: 0.1
+  min_lr_ratio: 1e-5

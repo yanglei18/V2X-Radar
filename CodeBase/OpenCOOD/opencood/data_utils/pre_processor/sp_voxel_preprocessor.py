@@ -16,18 +16,20 @@ from opencood.data_utils.pre_processor.base_preprocessor import \
 
 
 class SpVoxelPreprocessor(BasePreprocessor):
-    def __init__(self, preprocess_params, train):
-        super(SpVoxelPreprocessor, self).__init__(preprocess_params,
+    def __init__(self, preprocess_params, params, train):
+        super(SpVoxelPreprocessor, self).__init__(preprocess_params, params,
                                                   train)
         self.spconv = 1
         try:
             # spconv v1.x
             from spconv.utils import VoxelGeneratorV2 as VoxelGenerator
+            self.VoxelGenerator = VoxelGenerator
         except:
             # spconv v2.x
             from cumm import tensorview as tv
             from spconv.utils import Point2VoxelCPU3d as VoxelGenerator
             self.tv = tv
+            self.VoxelGenerator = VoxelGenerator
             self.spconv = 2
         self.lidar_range = self.params['cav_lidar_range']
         self.voxel_size = self.params['args']['voxel_size']
@@ -43,27 +45,37 @@ class SpVoxelPreprocessor(BasePreprocessor):
         self.grid_size = np.round(grid_size).astype(np.int64)
 
         # use sparse conv library to generate voxel
+        # For spconv v1, voxel_generator is created in __init__
+        # For spconv v2, voxel_generator will be created in preprocess based on actual point features
         if self.spconv == 1:
-            self.voxel_generator = VoxelGenerator(
+            self.voxel_generator = self.VoxelGenerator(
                 voxel_size=self.voxel_size,
                 point_cloud_range=self.lidar_range,
                 max_num_points=self.max_points_per_voxel,
                 max_voxels=self.max_voxels
             )
         else:
-            self.voxel_generator = VoxelGenerator(
-                vsize_xyz=self.voxel_size,
-                coors_range_xyz=self.lidar_range,
-                max_num_points_per_voxel=self.max_points_per_voxel,
-                num_point_features=4,
-                max_num_voxels=self.max_voxels
-            )
+            # For spconv v2, we'll create voxel_generator in preprocess based on actual point features
+            self.voxel_generator = None
+            self.num_point_features = None
 
     def preprocess(self, pcd_np):
         data_dict = {}
         if self.spconv == 1:
             voxel_output = self.voxel_generator.generate(pcd_np)
         else:
+            # For spconv v2, check if we need to create or recreate voxel_generator
+            # pcd_np shape: [N, num_features], so num_features = pcd_np.shape[1]
+            num_features = pcd_np.shape[1]
+            if self.voxel_generator is None or self.num_point_features != num_features:
+                self.num_point_features = num_features
+                self.voxel_generator = self.VoxelGenerator(
+                    vsize_xyz=self.voxel_size,
+                    coors_range_xyz=self.lidar_range,
+                    max_num_points_per_voxel=self.max_points_per_voxel,
+                    num_point_features=num_features,
+                    max_num_voxels=self.max_voxels
+                )
             pcd_tv = self.tv.from_numpy(pcd_np)
             voxel_output = self.voxel_generator.point_to_voxel(pcd_tv)
         if isinstance(voxel_output, dict):

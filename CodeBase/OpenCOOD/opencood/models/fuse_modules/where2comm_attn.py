@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from opencood.models.sub_modules.torch_transformation_utils import warp_affine_simple
-from opencood.models.comm_modules.where2comm import Communication
+from .where2comm import Communication
 
 
 class ScaledDotProductAttention(nn.Module):

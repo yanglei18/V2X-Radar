@@ -14,8 +14,8 @@ from opencood.data_utils.pre_processor.base_preprocessor import \
 
 
 class BevPreprocessor(BasePreprocessor):
-    def __init__(self, preprocess_params, train):
-        super(BevPreprocessor, self).__init__(preprocess_params, train)
+    def __init__(self, preprocess_params, params, train):
+        super(BevPreprocessor, self).__init__(preprocess_params, params, train)
         self.lidar_range = self.params['cav_lidar_range']
         self.geometry_param = preprocess_params["geometry_param"]
 

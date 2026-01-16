@@ -293,7 +293,10 @@ def project_box3d(box3d, transformation_matrix):
     projected_box3d : torch.Tensor
         The projected bounding box, (N, 8, 3)
     """
-    assert transformation_matrix.shape == (4, 4)
+    if transformation_matrix.shape[0] == 1:
+        transformation_matrix = transformation_matrix.squeeze(0)
+    if transformation_matrix.shape[0] != 1:
+        assert transformation_matrix.shape == (4, 4)
     box3d, is_numpy = \
         common_utils.check_numpy_to_torch(box3d)
     transformation_matrix, _ = \
@@ -314,35 +317,6 @@ def project_box3d(box3d, transformation_matrix):
     projected_box3d = projected_box3d[:, :3, :].transpose(1, 2)
 
     return projected_box3d if not is_numpy else projected_box3d.numpy()
-
-
-def project_points_by_matrix_torch(points, transformation_matrix):
-    """
-    Project the points to another coordinate system based on the
-    transfomration matrix. 
-    
-    IT NOT USED. LATTER ONE WITH THE SAME NAME WILL BE USED.
-
-    Parameters
-    ----------
-    points : torch.Tensor
-        3D points, (N, 3)
-
-    transformation_matrix : torch.Tensor
-        Transformation matrix, (4, 4)
-
-    Returns
-    -------
-    projected_points : torch.Tensor
-        The projected points, (N, 3)
-    """
-    # convert to homogeneous  coordinates via padding 1 at the last dimension.
-    # (N, 4)
-    points_homogeneous = F.pad(points, (0, 1), mode="constant", value=1)
-    # (N, 4)
-    projected_points = torch.einsum("ik, jk->ij", points_homogeneous,
-                                    transformation_matrix)
-    return projected_points[:, :3]
 
 
 def get_mask_for_boxes_within_range_torch(boxes, gt_range):
@@ -412,8 +386,10 @@ def mask_boxes_outside_range_numpy(boxes, limit_range, order,
     if boxes.shape[1] == 7:
         new_boxes = boxes_to_corners_3d(new_boxes, order)
 
-    mask = ((new_boxes >= limit_range[0:3]) &
-            (new_boxes <= limit_range[3:6])).all(axis=2)
+    # mask = ((new_boxes >= limit_range[0:3]) &
+    #         (new_boxes <= limit_range[3:6])).all(axis=2)
+    mask = ((new_boxes[:,:,:2] >= limit_range[0:2]) &
+            (new_boxes[:,:,:2] <= limit_range[3:5])).all(axis=2)
     mask = mask.sum(axis=1) >= min_num_corners  # (N)
 
     if return_mask:

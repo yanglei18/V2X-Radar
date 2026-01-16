@@ -13,6 +13,7 @@ from opencood.models.sub_modules.torch_transformation_utils import \
 from opencood.utils.transformation_utils import normalize_pairwise_tfm
 from opencood.models.fuse_modules.fusion_in_one import \
     MaxFusion, AttFusion, V2VNetFusion, V2XViTFusion, DiscoFusion
+from torchvision.models import resnet18
 
 class Up(nn.Module):
     def __init__(self, in_channels, out_channels, scale_factor=2):
@@ -51,6 +52,17 @@ class CamEncode(nn.Module):  # 提取图像特征进行图像编码
 
         
         self.trunk = EfficientNet.from_pretrained("efficientnet-b0")  # 使用 efficientnet 提取特征
+        # Disable gradients for classification head (not used in get_eff_features)
+        # Only feature extraction parts (_conv_stem, _bn0, _blocks) are used
+        if hasattr(self.trunk, '_conv_head'):
+            for p in self.trunk._conv_head.parameters():
+                p.requires_grad = False
+        if hasattr(self.trunk, '_bn1'):
+            for p in self.trunk._bn1.parameters():
+                p.requires_grad = False
+        if hasattr(self.trunk, '_fc'):
+            for p in self.trunk._fc.parameters():
+                p.requires_grad = False
 
         self.up1 = Up(320+112, 512)  # 上采样模块，输入输出通道分别为320+112和512
         if downsample == 8:
@@ -72,14 +84,47 @@ class CamEncode(nn.Module):  # 提取图像特征进行图像编码
             x: [B*N, D, fH, fW]
         """
         target = self.training
+        x = x * self.d_max
         torch.clamp_max_(x, self.d_max) # save memory
         # [B*N, H, W], indices (float), value: [0, num_bins)
         depth_indices, mask = bin_depths(x, self.mode, self.d_min, self.d_max, self.num_bins, target=target)
-        depth_indices = depth_indices[:, self.downsample//2::self.downsample, self.downsample//2::self.downsample]
+        
+        # Min pooling downsampling: take minimum depth (closest object) in each downsample x downsample block
+        # For blocks that are all zeros, select 0; otherwise, select the minimum non-zero value
+        B_N, H, W = depth_indices.shape
+        fH, fW = H // self.downsample, W // self.downsample
+        depth_indices = depth_indices.view(B_N, fH, self.downsample, fW, self.downsample)
+        # Check if each block is all zeros
+        is_all_zero = (depth_indices == 0).all(dim=4).all(dim=2)  # [B*N, fH, fW]
+        # For non-zero blocks, replace 0 with a large value so min will select non-zero minimum
+        depth_indices_safe = depth_indices.clone()
+        depth_indices_safe[depth_indices == 0] = self.num_bins  # Set 0 to num_bins (larger than any valid index)
+        # Take min over each block (0s won't be selected for non-zero blocks)
+        depth_indices = depth_indices_safe.min(dim=4).values.min(dim=2).values  # [B*N, fH, fW]
+        # If block is all zeros, set result to 0; otherwise keep the non-zero minimum
+        depth_indices = torch.where(is_all_zero, torch.zeros_like(depth_indices), depth_indices)
+        
+        # Interpolate to fill invalid regions (where depth_indices equals max value, indicating invalid depth)
+        invalid_mask = (depth_indices == self.num_bins - 1)  # [B*N, fH, fW]
+        # Use weighted interpolation: interpolate both values and mask, then normalize
+        valid_mask = (~invalid_mask).float()  # [B*N, fH, fW], 1 for valid, 0 for invalid
+        depth_values = torch.where(invalid_mask, torch.zeros_like(depth_indices), depth_indices).float()
+        # Interpolate both values and mask
+        depth_interp = F.interpolate(depth_values.unsqueeze(1), size=(fH * 2, fW * 2), mode='bilinear', align_corners=False)
+        mask_interp = F.interpolate(valid_mask.unsqueeze(1), size=(fH * 2, fW * 2), mode='bilinear', align_corners=False)
+        depth_interp = F.interpolate(depth_interp, size=(fH, fW), mode='bilinear', align_corners=False)
+        mask_interp = F.interpolate(mask_interp, size=(fH, fW), mode='bilinear', align_corners=False)
+        # Normalize by mask to get proper interpolation (avoid 0/0 issues)
+        depth_interp = depth_interp / (mask_interp + 1e-8)
+        depth_indices = torch.where(invalid_mask, depth_interp.squeeze(1).long(), depth_indices)
+
         onehot_dist = F.one_hot(depth_indices.long()).permute(0,3,1,2) # [B*N, num_bins, fH, fW]
 
         if not target:
-            mask = mask[:, self.downsample//2::self.downsample, self.downsample//2::self.downsample].unsqueeze(1)
+            # Apply same min pooling to mask (if any block has invalid depth, the block is invalid)
+            mask = mask.view(B_N, fH, self.downsample, fW, self.downsample)
+            mask = mask.max(dim=4).values.max(dim=2).values  # [B*N, fH, fW] - max (OR): invalid if any pixel invalid
+            mask = mask.unsqueeze(1)  # [B*N, 1, fH, fW]
             onehot_dist *= mask
 
         return onehot_dist, depth_indices
@@ -109,6 +154,18 @@ class CamEncode(nn.Module):  # 提取图像特征进行图像编码
         if self.downsample == 8:
             x = self.up2(x, endpoints['reduction_3'])
         return x  # x: 24 x 512 x 8 x 22
+    
+    def get_context(self, x):
+        x_img_ = x[:,:3:,:,:]
+        features = self.get_eff_features(x_img_)  # depth: B*N x D x fH x fW(24 x 41 x 8 x 22)  x: B*N x C x D x fH x fW(24 x 64 x 41 x 8 x 22)
+        x_img = self.image_head(features)
+        assert self.depth_supervision, "depth_supervision must be True for voxel painting"
+        x_depth = x[:,3,:,:]
+        depth_gt, depth_gt_indices = self.get_gt_depth_dist(x_depth)
+        depth_logit = self.depth_head(features)
+        depth = self.get_depth_dist(depth_logit)
+        new_x = depth.unsqueeze(1) * x_img.unsqueeze(2) # new_x: 24 x 64 x 41 x 8 x 18
+        return (depth_logit, depth_gt_indices), new_x, x_img
 
     def forward(self, x):
         """

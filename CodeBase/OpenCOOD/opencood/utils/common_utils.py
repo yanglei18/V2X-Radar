@@ -244,10 +244,12 @@ def compute_iou(box, boxes):
         Array of iou between box and boxes.
 
     """
-    # Calculate intersection areas
-    if np.any(np.array([box.union(b).area for b in boxes])==0):
-        print('debug')
-    iou = [box.intersection(b).area / box.union(b).area for b in boxes]
+    import warnings
+    # Suppress shapely RuntimeWarning for invalid intersection values
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', category=RuntimeWarning, module='shapely')
+        # Calculate intersection areas
+        iou = [box.intersection(b).area / box.union(b).area for b in boxes]
 
     return np.array(iou, dtype=np.float32)
 

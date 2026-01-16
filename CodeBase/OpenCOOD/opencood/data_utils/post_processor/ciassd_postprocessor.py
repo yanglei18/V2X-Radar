@@ -14,8 +14,8 @@ from opencood.utils import box_utils
 
 
 class CiassdPostprocessor(VoxelPostprocessor):
-    def __init__(self, anchor_params, train):
-        super(CiassdPostprocessor, self).__init__(anchor_params, train)
+    def __init__(self, anchor_params, params, train):
+        super(CiassdPostprocessor, self).__init__(anchor_params, params, train)
         self.train = train
         self.anchor_num = self.params['anchor_args']['num']
 

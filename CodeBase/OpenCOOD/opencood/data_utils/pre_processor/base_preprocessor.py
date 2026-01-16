@@ -20,8 +20,9 @@ class BasePreprocessor(object):
         Train or test mode.
     """
 
-    def __init__(self, preprocess_params, train):
+    def __init__(self, preprocess_params, params, train):
         self.params = preprocess_params
+        self.all_params = params
         self.train = train
 
     def preprocess(self, pcd_np):

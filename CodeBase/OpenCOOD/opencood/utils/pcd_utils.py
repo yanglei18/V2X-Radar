@@ -9,7 +9,7 @@ Utility functions related to point cloud
 
 import open3d as o3d
 import numpy as np
-from pypcd import pypcd
+from packages.pypcd import pypcd
 
 def pcd_to_np(pcd_file):
     """
@@ -67,7 +67,7 @@ def mask_points_by_range(points, limit_range):
     return points
 
 
-def mask_ego_points(points):
+def mask_ego_lidar_points(points):
     """
     Remove the lidar points of the ego vehicle itself.
 
@@ -87,6 +87,25 @@ def mask_ego_points(points):
 
     return points
 
+def mask_ego_radar_points(points):
+    """
+    Remove the lidar points of the ego vehicle itself.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Lidar points under lidar sensor coordinate system.
+
+    Returns
+    -------
+    points : np.ndarray
+        Filtered lidar points.
+    """
+    mask = (points[:, 0] <= 3) \
+           & (points[:, 1] >= -3) & (points[:, 1] <= 3)
+    points = points[np.logical_not(mask)]
+
+    return points
 
 def shuffle_points(points):
     shuffle_idx = np.random.permutation(points.shape[0])
@@ -202,14 +221,66 @@ def downsample_lidar_minimum(pcd_np_list):
 
     return pcd_np_list
 
-def read_pcd(pcd_path):
+def read_lidar(pcd_path):
     pcd = pypcd.PointCloud.from_path(pcd_path)
     time = None
     pcd_np_points = np.zeros((pcd.points, 4), dtype=np.float32)
     pcd_np_points[:, 0] = np.transpose(pcd.pc_data["x"])
     pcd_np_points[:, 1] = np.transpose(pcd.pc_data["y"])
     pcd_np_points[:, 2] = np.transpose(pcd.pc_data["z"])
-    pcd_np_points[:, 3] = np.transpose(pcd.pc_data["intensity"]) / 256.0
+    
+    # Use intensity if available, otherwise use RGB
+    if "intensity" in pcd.pc_data.dtype.names:
+        pcd_np_points[:, 3] = np.transpose(pcd.pc_data["intensity"]) / 256.0
+    if "rgb" in pcd.pc_data.dtype.names:
+        pcd_np_points[:, 3] = np.transpose(pcd.pc_data["rgb"])
+    
+    del_index = np.where(np.isnan(pcd_np_points))[0]
+    pcd_np_points = np.delete(pcd_np_points, del_index, axis=0)
+    return pcd_np_points, time
+
+def read_radar(pcd_path):
+    pcd = pypcd.PointCloud.from_path(pcd_path)
+    time = None
+    pcd_np_points = np.zeros((pcd.points, 5), dtype=np.float32)
+    pcd_np_points[:, 0] = np.transpose(pcd.pc_data["x"])
+    pcd_np_points[:, 1] = np.transpose(pcd.pc_data["y"])
+    pcd_np_points[:, 2] = np.transpose(pcd.pc_data["z"])
+    
+    if 'v2x-radar' in pcd_path.split('/'):
+        # Determine if it's Infra (-1) or Vehicle based on path
+        result = pcd_path.split('/')[-2]
+        if result == '-1':
+            intens = np.clip(np.transpose(pcd.pc_data["dopple"]) / 256.0, 0, 1)
+            dopple = np.clip(np.transpose(pcd.pc_data["intensity"]-(-4)) / 8.0, 0, 1)
+            pcd_np_points[:, 3] = intens
+            pcd_np_points[:, 4] = dopple
+            # index = pcd_np_points[:, 4] > 0.48 # and pcd_np_points[:, 4] < 0.6
+            # pcd_np_points = pcd_np_points[index]
+        else:
+            intens = np.clip(np.transpose(pcd.pc_data["dopple"]-(-20)) / 35.0, 0, 1)
+            dopple = np.clip(np.transpose(pcd.pc_data["intensity"]-80.0) / 100.0, 0, 1)
+            pcd_np_points[:, 3] = intens
+            pcd_np_points[:, 4] = dopple
+    if 'v2x-r' in pcd_path.split('/'):
+        path_parts = pcd_path.split('/')
+        # Check if coordinate flip is needed
+        needs_flip = False
+        if '2024_06_24_19_56_04' in path_parts:
+            needs_flip = True
+        elif '2024_06_27_10_09_59' in path_parts and '199' in path_parts:
+            # Specific timestamps that need coordinate flip for CAV 199
+            # From 60 to 176, every 2 frames
+            flip_timestamps = [f"{i:06d}" for i in range(60, 177, 2)]
+            timestamp = path_parts[-1].replace('_radar.pcd', '').replace('.pcd', '')
+            if timestamp in flip_timestamps:
+                needs_flip = True
+        if needs_flip:
+            pcd_np_points[:, 0] = -pcd_np_points[:, 0]
+            pcd_np_points[:, 1] = -pcd_np_points[:, 1]
+        pcd_np_points[:, 3] = np.transpose(pcd.pc_data["rgb"])
+        pcd_np_points[:, 4] = np.transpose(pcd.pc_data["rgb"])
+    
     del_index = np.where(np.isnan(pcd_np_points))[0]
     pcd_np_points = np.delete(pcd_np_points, del_index, axis=0)
     return pcd_np_points, time

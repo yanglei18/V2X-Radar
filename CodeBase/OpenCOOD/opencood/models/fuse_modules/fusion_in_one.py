@@ -85,8 +85,9 @@ def warp_feature(x, record_len, affine_matrix):
     return out
 
 class MaxFusion(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(MaxFusion, self).__init__()
+        self.feature_dims = args['feat_dim']
 
     def forward(self, x, record_len, affine_matrix):
         """
@@ -124,9 +125,10 @@ class MaxFusion(nn.Module):
         return out
 
 class AttFusion(nn.Module):
-    def __init__(self, feature_dims):
+    def __init__(self, args):
         super(AttFusion, self).__init__()
-        self.att = ScaledDotProductAttention(feature_dims)
+        self.feature_dims = args['feat_dim']
+        self.att = ScaledDotProductAttention(self.feature_dims)
 
     def forward(self, xx, record_len, affine_matrix):
         _, C, H, W = xx.shape
@@ -151,10 +153,11 @@ class AttFusion(nn.Module):
         return out
 
 class DiscoFusion(nn.Module):
-    def __init__(self, feature_dims):
+    def __init__(self, args):
         super(DiscoFusion, self).__init__()
-        from opencood.models.fuse_modules.disco_fuse import PixelWeightLayer
-        self.pixel_weight_layer = PixelWeightLayer(feature_dims)
+        self.feature_dims = args['feat_dim']
+        # from opencood.models.fuse_modules.disco_fuse import PixelWeightLayer
+        # self.pixel_weight_layer = PixelWeightLayer(feature_dims)
 
     def forward(self, xx, record_len, affine_matrix):
         """
@@ -434,10 +437,11 @@ class Where2commFusion(nn.Module):
     
     used in Where2comm Paper
     """
-    def __init__(self, feature_dims):
+    def __init__(self, args):
         super().__init__()
+        self.feature_dims = args['feat_dim']
         from opencood.models.fuse_modules.where2comm_attn import EncodeLayer
-        self.mha_fusion = EncodeLayer(feature_dims)
+        self.mha_fusion = EncodeLayer(self.feature_dims)
 
     def forward(self, x, record_len, affine_matrix):
         """
@@ -482,7 +486,91 @@ class Where2commFusion(nn.Module):
         out = torch.stack(out)
         
         return out
-    
+
+class SICPFusion(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.feature_dims = args['feat_dim']
+        from opencood.models.fuse_modules.sicp_fuse import SICPFusion
+        # 这里的 feature_dims 是单车特征通道 C，底层 SICPFusion 内部会使用 2*C 作为中间通道
+        # 来处理 (ego, neighbor) 拼接后的特征。
+        self.spatial_fusion = SICPFusion(self.feature_dims)
+
+    def forward(self, x, record_len, affine_matrix):
+        """
+        Parameters
+        ----------
+        x : torch.Tensor
+            input data, (sum(n_cav), C, H, W)
+        record_len : torch.Tensor
+            shape: (B,), number of CAVs per batch
+        affine_matrix : torch.Tensor
+            normalized affine matrix from 'normalize_pairwise_tfm'
+            shape: (B, L, L, 2, 3)
+
+        Notes
+        -----
+        SpatialFusion has been extended to support multi-CAV scenarios.
+        Here we:
+          1) regroup features by batch using `record_len`
+          2) for each batch b, call SpatialFusion on its CAV features and the
+             corresponding slice of affine_matrix.
+        """
+        # x: (sum(n_cav), C, H, W)
+        split_x = regroup(x, record_len)
+        out = []
+        B = record_len.shape[0]
+        for b in range(B):
+            cav_num = record_len[b]
+            # 特征: (cav_num, C, H, W)
+            cav_feats = split_x[b]
+            # 仿射矩阵: 取该 batch 的一块，保持 SpatialFusion 内部索引方式
+            cav_affine = affine_matrix[b:b+1, :cav_num, :cav_num, :, :]
+            cav_record_len = record_len[b:b+1]
+
+            fused = self.spatial_fusion(cav_feats, cav_record_len, cav_affine)
+            # 期望 fused 形状为 (1, C, H, W)
+            out.append(fused)
+
+        # (B, C, H, W)
+        out = torch.cat(out, dim=0)
+        return out
+
+class AdaFusion(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.feature_dims = args['feat_dim']
+        from opencood.models.fuse_modules.adafusion import AdaFusion as AdaFusionModule
+        # AdaFusionModule 本身内部会根据 record_len regroup 每个 batch 的多车特征，
+        # 并使用 3D 卷积在 [max, mean] 两种聚合上自适应融合。
+        self.spatial_fusion = AdaFusionModule()
+
+    def forward(self, x, record_len, affine_matrix):
+        """
+        Parameters
+        ----------
+        x : torch.Tensor
+            input data, (sum(n_cav), C, H, W)
+        record_len : torch.Tensor
+            shape: (B,), number of CAVs per batch
+        affine_matrix : torch.Tensor
+            normalized affine matrix from 'normalize_pairwise_tfm'
+            shape: (B, L, L, 2, 3)
+
+        Notes
+        -----
+        We first warp all agents' features into ego's BEV frame for each batch,
+        then call the AdaFusion module to adaptively fuse multi-agent features
+        using 3D conv over [max, mean] statistics.
+        """
+        # 先对齐到 ego 坐标系（与 MaxFusion / AttFusion 等保持一致）
+        # warped: (sum(n_cav), C, H, W)
+        warped = warp_feature(x, record_len, affine_matrix)
+        # AdaFusion 内部会按照 record_len 重新 regroup 成每个 batch 的多车特征，
+        # 然后输出 (B, C, H, W) 的融合结果。
+        out = self.spatial_fusion(warped, record_len)
+        return out
+
 class Who2comFusion(nn.Module):
     def __init__(self, feature_dims):
         super().__init__()

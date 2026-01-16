@@ -4,9 +4,9 @@ import random
 import torch
 import torch.nn as nn
 
-from opencood.pcdet_utils.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
-from opencood.pcdet_utils.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
-from opencood.pcdet_utils.roiaware_pool3d.roiaware_pool3d_utils import points_in_boxes_gpu
+from packages.pcdet_utils.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
+from packages.pcdet_utils.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
+from packages.pcdet_utils.roiaware_pool3d.roiaware_pool3d_utils import points_in_boxes_gpu
 from opencood.utils import common_utils
 
 

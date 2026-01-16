@@ -3,8 +3,8 @@ import shutil
 from tqdm import tqdm
 
 if __name__ == "__main__":
-    src_root = "datasets/v2x-radar-v2xset-coop-radar-data"
-    dest_root = "datasets/v2x-radar-v2xset-coop-radar-data-async"
+    src_root = "/data1/yanglei/V2X-Radar-C-V2XSet-202613"
+    dest_root = "/data1/yanglei/V2X-Radar-C-V2XSet-300ms"
     print("hello world ...")
     
     for split in ["train", "validate"]:
@@ -17,16 +17,13 @@ if __name__ == "__main__":
                 if "camera0" not in filename: continue
                 
                 frame_id = int(filename.split('_')[0])
-                src_frame_id = frame_id - 20 if frame_id - 20 > 0 else 0
+                src_frame_id = frame_id - 3 if frame_id - 3 > 0 else 0
                 shutil.copy2(os.path.join(src_path, "{:05d}_camera0.jpg".format(src_frame_id)), os.path.join(dest_path, "{:05d}_camera0.jpg".format(frame_id)))
                 shutil.copy2(os.path.join(src_path, "{:05d}_camera1.jpg".format(src_frame_id)), os.path.join(dest_path, "{:05d}_camera1.jpg".format(frame_id)))
                 shutil.copy2(os.path.join(src_path, "{:05d}_camera2.jpg".format(src_frame_id)), os.path.join(dest_path, "{:05d}_camera2.jpg".format(frame_id)))
-                # shutil.copy2(os.path.join(src_path, "{:05d}_radar.pcd".format(src_frame_id)), os.path.join(dest_path, "{:05d}_radar.pcd".format(frame_id)))
+                shutil.copy2(os.path.join(src_path, "{:05d}_radar.pcd".format(src_frame_id)), os.path.join(dest_path, "{:05d}_radar.pcd".format(frame_id)))
                 shutil.copy2(os.path.join(src_path, "{:05d}.pcd".format(src_frame_id)), os.path.join(dest_path, "{:05d}.pcd".format(frame_id)))
                 shutil.copy2(os.path.join(src_path, "{:05d}.yaml".format(frame_id)), os.path.join(dest_path, "{:05d}.yaml".format(frame_id)))
                 
                 
-                
-                
-
                 
